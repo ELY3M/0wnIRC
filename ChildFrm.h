@@ -34,7 +34,7 @@ public:
 #endif
 
 	CWnd* GetMainPane() const;
-	CWnd* GetActivePane() const;
+	CWnd* GetActivePane();
 
 // Generated message map functions
 protected:
