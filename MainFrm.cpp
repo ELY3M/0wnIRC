@@ -467,7 +467,16 @@ void CMainFrame::SyncSwitchBar()
 {
 	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
 	{
-		m_wndSwitchBar.SyncFromWindows(m_hWndMDIClient, MDIGetActive() != nullptr ? MDIGetActive()->GetSafeHwnd() : nullptr);
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(m_hWndMDIClient, hActiveChild);
 	}
 }
 

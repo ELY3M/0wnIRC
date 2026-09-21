@@ -118,7 +118,7 @@ void CChildFrame::OnMDIActivate(BOOL bActivate, CWnd* pActivateWnd, CWnd* pDeact
 void CChildFrame::OnDestroy()
 {
 	CMDIChildWndEx::OnDestroy();
-	NotifySwitchBar(FALSE);
+	NotifySwitchBar();
 }
 
 BOOL CChildFrame::OnSetText(LPCTSTR lpszText)
