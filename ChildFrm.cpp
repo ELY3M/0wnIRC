@@ -23,7 +23,7 @@ BEGIN_MESSAGE_MAP(CChildFrame, CMDIChildWndEx)
 	ON_WM_CREATE()
 	ON_WM_MDIACTIVATE()
 	ON_WM_DESTROY()
-	ON_MESSAGE(WM_SETTEXT, &CChildFrame::OnSetTextMessage)
+	ON_WM_SETTEXT()
 END_MESSAGE_MAP()
 
 // CChildFrame construction/destruction
@@ -117,15 +117,15 @@ void CChildFrame::OnMDIActivate(BOOL bActivate, CWnd* pActivateWnd, CWnd* pDeact
 
 void CChildFrame::OnDestroy()
 {
-	CMDIChildWndEx::OnDestroy();
 	NotifySwitchBar();
+	CMDIChildWndEx::OnDestroy();
 }
 
-LRESULT CChildFrame::OnSetTextMessage(WPARAM wParam, LPARAM lParam)
+BOOL CChildFrame::OnSetText(LPCTSTR lpszText)
 {
-	const LRESULT lResult = Default();
+	const BOOL bResult = CMDIChildWndEx::OnSetText(lpszText);
 	NotifySwitchBar();
-	return lResult;
+	return bResult;
 }
 
 void CChildFrame::NotifySwitchBar() const

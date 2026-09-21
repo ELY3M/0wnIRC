@@ -53,19 +53,20 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 		return;
 	}
 
-	while (m_wndTabs.GetItemCount() > 0)
-	{
-		m_wndTabs.DeleteItem(0);
-	}
+	m_bSyncing = TRUE;
 
 	if (!::IsWindow(hMDIClient))
 	{
 		m_windowOrder.RemoveAll();
+		while (m_wndTabs.GetItemCount() > 0)
+		{
+			m_wndTabs.DeleteItem(m_wndTabs.GetItemCount() - 1);
+		}
+		m_bSyncing = FALSE;
 		return;
 	}
 
 	int nActiveIndex = -1;
-	int nItemIndex = 0;
 	CArray<HWND, HWND> currentWindows;
 
 	for (HWND hChild = ::GetWindow(hMDIClient, GW_CHILD);
@@ -102,31 +103,53 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 
 		CString strTitle;
 		const int nTitleLength = ::GetWindowTextLength(hChild);
-		::GetWindowText(hChild, strTitle.GetBufferSetLength(nTitleLength), nTitleLength + 1);
+		LPTSTR pszTitle = strTitle.GetBuffer(nTitleLength + 1);
+		::GetWindowText(hChild, pszTitle, nTitleLength + 1);
 		strTitle.ReleaseBuffer();
 		if (strTitle.IsEmpty())
 		{
 			strTitle = _T("(untitled)");
 		}
 
-		const int nInsertedIndex = m_wndTabs.InsertItem(nItemIndex, strTitle);
-		if (nInsertedIndex >= 0)
+		TCITEM item = {};
+		item.mask = TCIF_TEXT | TCIF_PARAM;
+		item.pszText = const_cast<LPTSTR>(static_cast<LPCTSTR>(strTitle));
+		item.lParam = reinterpret_cast<LPARAM>(hChild);
+
+		if (i < m_wndTabs.GetItemCount())
 		{
-			TCITEM item = {};
-			item.mask = TCIF_PARAM;
-			item.lParam = reinterpret_cast<LPARAM>(hChild);
-			m_wndTabs.SetItem(nInsertedIndex, &item);
+			m_wndTabs.SetItem(i, &item);
+		}
+		else
+		{
+			m_wndTabs.InsertItem(i, &item);
+		}
 
-			if (hChild == hActiveChild)
-			{
-				nActiveIndex = nInsertedIndex;
-			}
-
-			++nItemIndex;
+		if (hChild == hActiveChild)
+		{
+			nActiveIndex = i;
 		}
 	}
 
-	m_wndTabs.SetCurSel(nActiveIndex);
+	while (m_wndTabs.GetItemCount() > m_windowOrder.GetSize())
+	{
+		m_wndTabs.DeleteItem(m_wndTabs.GetItemCount() - 1);
+	}
+
+	if (nActiveIndex >= 0)
+	{
+		m_wndTabs.SetCurSel(nActiveIndex);
+	}
+	else if (m_wndTabs.GetItemCount() > 0)
+	{
+		const int nCurrentSelection = m_wndTabs.GetCurSel();
+		if (nCurrentSelection < 0 || nCurrentSelection >= m_wndTabs.GetItemCount())
+		{
+			m_wndTabs.SetCurSel(0);
+		}
+	}
+
+	m_bSyncing = FALSE;
 }
 
 CSize CSwitchBar::CalcFixedLayout(BOOL, BOOL)
@@ -152,7 +175,7 @@ int CSwitchBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 	}
 
-	if (!m_wndTabs.Create(WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_SINGLELINE | TCS_FOCUSNEVER,
+	if (!m_wndTabs.Create(WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_SINGLELINE,
 		CRect(0, 0, 0, 0), this, IDC_SWITCHBAR_TABS))
 	{
 		TRACE0("Failed to create switchbar tabs\n");
@@ -180,6 +203,12 @@ void CSwitchBar::OnSize(UINT nType, int cx, int cy)
 
 void CSwitchBar::OnSelChange(NMHDR*, LRESULT* pResult)
 {
+	if (m_bSyncing)
+	{
+		*pResult = 0;
+		return;
+	}
+
 	const int nSelectedIndex = m_wndTabs.GetCurSel();
 	if (nSelectedIndex >= 0)
 	{
@@ -189,7 +218,7 @@ void CSwitchBar::OnSelChange(NMHDR*, LRESULT* pResult)
 		{
 			if (CWnd* pMainWnd = AfxGetMainWnd())
 			{
-				pMainWnd->SendMessage(WM_SWITCHBAR_ACTIVATE_CHILD, static_cast<WPARAM>(item.lParam));
+				pMainWnd->SendMessage(WM_SWITCHBAR_ACTIVATE_CHILD, 0, item.lParam);
 			}
 		}
 	}
@@ -443,29 +472,22 @@ LRESULT CMainFrame::OnSwitchBarSync(WPARAM, LPARAM)
 	return 0;
 }
 
-LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM wp, LPARAM)
+LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM, LPARAM lp)
 {
-	const HWND hChild = reinterpret_cast<HWND>(wp);
+	const HWND hChild = reinterpret_cast<HWND>(lp);
 	if (!::IsWindow(hChild))
 	{
 		return 0;
 	}
 
-	CMDIChildWndEx* pChildFrame = DYNAMIC_DOWNCAST(CMDIChildWndEx, CWnd::FromHandlePermanent(hChild));
-	if (pChildFrame == nullptr)
+	if (::IsWindow(m_hWndMDIClient))
 	{
-		pChildFrame = DYNAMIC_DOWNCAST(CMDIChildWndEx, CWnd::FromHandle(hChild));
-	}
-
-	if (pChildFrame != nullptr)
-	{
-		if (pChildFrame->IsIconic())
+		if (::IsIconic(hChild))
 		{
-			pChildFrame->MDIRestore();
+			::SendMessage(m_hWndMDIClient, WM_MDIRESTORE, reinterpret_cast<WPARAM>(hChild), 0);
 		}
 
-		pChildFrame->MDIActivate();
-		pChildFrame->SetFocus();
+		::SendMessage(m_hWndMDIClient, WM_MDIACTIVATE, reinterpret_cast<WPARAM>(hChild), 0);
 	}
 
 	return 0;

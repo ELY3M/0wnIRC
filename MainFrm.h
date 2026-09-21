@@ -16,6 +16,7 @@ public:
 protected:
 	CTabCtrl m_wndTabs;
 	CArray<HWND, HWND> m_windowOrder;
+	BOOL m_bSyncing = FALSE;
 
 	virtual CSize CalcFixedLayout(BOOL bStretch, BOOL bHorz);
 	void LayoutTabs();
