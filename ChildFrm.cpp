@@ -162,7 +162,7 @@ CWnd* CChildFrame::GetMainPane() const
 	return nullptr;
 }
 
-CWnd* CChildFrame::GetActivePane() const
+CWnd* CChildFrame::GetActivePane()
 {
 	CWnd* pFocusedWnd = CWnd::GetFocus();
 	if (pFocusedWnd != nullptr && m_wndSplitter.GetSafeHwnd() != nullptr)
