@@ -19,19 +19,6 @@ namespace
 	constexpr UINT ID_SWITCHBAR_PANE = AFX_IDW_CONTROLBAR_FIRST + 60;
 	constexpr UINT IDC_SWITCHBAR_TABS = 1;
 	constexpr int kSwitchBarHeight = 28;
-
-	INT_PTR FindWindowIndex(const CArray<HWND, HWND>& windows, HWND hWindow)
-	{
-		for (INT_PTR i = 0; i < windows.GetSize(); ++i)
-		{
-			if (windows[i] == hWindow)
-			{
-				return i;
-			}
-		}
-
-		return -1;
-	}
 }
 
 BEGIN_MESSAGE_MAP(CSwitchBar, CPane)
@@ -50,7 +37,7 @@ BOOL CSwitchBar::Create(CWnd* pParentWnd, UINT nID)
 		CBRS_BOTTOM | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_FIXED);
 }
 
-void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
+void CSwitchBar::SyncFromWindows(HWND hActiveChild, HWND hHintChild, HWND hRemovedChild)
 {
 	if (!::IsWindow(m_wndTabs.GetSafeHwnd()))
 	{
@@ -59,39 +46,37 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 
 	m_bSyncing = TRUE;
 
-	if (!::IsWindow(hMDIClient))
+	for (INT_PTR i = m_windowOrder.GetUpperBound(); i >= 0; --i)
 	{
-		m_windowOrder.RemoveAll();
-		while (m_wndTabs.GetItemCount() > 0)
+		if (m_windowOrder[i] == hRemovedChild)
 		{
-			m_wndTabs.DeleteItem(m_wndTabs.GetItemCount() - 1);
+			m_windowOrder.RemoveAt(i);
 		}
-		m_bSyncing = FALSE;
-		return;
+	}
+
+	if (::IsWindow(hHintChild))
+	{
+		BOOL bKnownWindow = FALSE;
+		for (INT_PTR i = 0; i < m_windowOrder.GetSize(); ++i)
+		{
+			if (m_windowOrder[i] == hHintChild)
+			{
+				bKnownWindow = TRUE;
+				break;
+			}
+		}
+
+		if (!bKnownWindow)
+		{
+			m_windowOrder.Add(hHintChild);
+		}
 	}
 
 	int nActiveIndex = -1;
-	CArray<HWND, HWND> currentWindows;
-
-	for (HWND hChild = ::GetWindow(hMDIClient, GW_CHILD);
-		hChild != nullptr;
-		hChild = ::GetWindow(hChild, GW_HWNDNEXT))
-	{
-		if ((::GetWindowLongPtr(hChild, GWL_EXSTYLE) & WS_EX_MDICHILD) == 0)
-		{
-			continue;
-		}
-
-		currentWindows.Add(hChild);
-		if (FindWindowIndex(m_windowOrder, hChild) < 0)
-		{
-			m_windowOrder.Add(hChild);
-		}
-	}
 
 	for (INT_PTR i = m_windowOrder.GetUpperBound(); i >= 0; --i)
 	{
-		if (FindWindowIndex(currentWindows, m_windowOrder[i]) < 0)
+		if (!::IsWindow(m_windowOrder[i]))
 		{
 			m_windowOrder.RemoveAt(i);
 		}
@@ -223,7 +208,7 @@ void CSwitchBar::OnSelChange(NMHDR*, LRESULT* pResult)
 		{
 			if (CWnd* pMainWnd = AfxGetMainWnd())
 			{
-				pMainWnd->SendMessage(WM_SWITCHBAR_ACTIVATE_CHILD, 0, item.lParam);
+				pMainWnd->PostMessage(WM_SWITCHBAR_ACTIVATE_CHILD, 0, item.lParam);
 			}
 		}
 	}
@@ -244,6 +229,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CMDIFrameWndEx)
 	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
 	ON_MESSAGE(WM_SWITCHBAR_SYNC, &CMainFrame::OnSwitchBarSync)
 	ON_MESSAGE(WM_SWITCHBAR_ACTIVATE_CHILD, &CMainFrame::OnSwitchBarActivateChild)
+	ON_MESSAGE(WM_SWITCHBAR_REMOVE_CHILD, &CMainFrame::OnSwitchBarRemoveChild)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -476,13 +462,25 @@ void CMainFrame::SyncSwitchBar()
 			}
 		}
 
-		m_wndSwitchBar.SyncFromWindows(m_hWndMDIClient, hActiveChild);
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr);
 	}
 }
 
-LRESULT CMainFrame::OnSwitchBarSync(WPARAM, LPARAM)
+LRESULT CMainFrame::OnSwitchBarSync(WPARAM wp, LPARAM)
 {
-	SyncSwitchBar();
+	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+	{
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, reinterpret_cast<HWND>(wp));
+	}
 	return 0;
 }
 
@@ -491,6 +489,25 @@ LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM, LPARAM lp)
 	const HWND hChild = reinterpret_cast<HWND>(lp);
 	if (!::IsWindow(hChild))
 	{
+		return 0;
+	}
+
+	LRESULT CMainFrame::OnSwitchBarRemoveChild(WPARAM wp, LPARAM)
+	{
+		if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+		{
+			HWND hActiveChild = nullptr;
+			if (::IsWindow(m_hWndMDIClient))
+			{
+				if (CMDIChildWnd* pActiveChild = MDIGetActive())
+				{
+					hActiveChild = pActiveChild->GetSafeHwnd();
+				}
+			}
+
+			m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr, reinterpret_cast<HWND>(wp));
+		}
+
 		return 0;
 	}
 

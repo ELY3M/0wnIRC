@@ -117,8 +117,15 @@ void CChildFrame::OnMDIActivate(BOOL bActivate, CWnd* pActivateWnd, CWnd* pDeact
 
 void CChildFrame::OnDestroy()
 {
+	if (CWnd* pMainWnd = AfxGetMainWnd())
+	{
+		if (::IsWindow(pMainWnd->GetSafeHwnd()))
+		{
+			pMainWnd->PostMessage(WM_SWITCHBAR_REMOVE_CHILD, reinterpret_cast<WPARAM>(GetSafeHwnd()));
+		}
+	}
+
 	CMDIChildWndEx::OnDestroy();
-	NotifySwitchBar();
 }
 
 BOOL CChildFrame::OnSetText(LPCTSTR lpszText)
@@ -138,11 +145,11 @@ void CChildFrame::NotifySwitchBar(BOOL bAsync) const
 	{
 		if (bAsync)
 		{
-			pMainWnd->PostMessage(WM_SWITCHBAR_SYNC);
+			pMainWnd->PostMessage(WM_SWITCHBAR_SYNC, reinterpret_cast<WPARAM>(GetSafeHwnd()));
 		}
 		else
 		{
-			pMainWnd->SendMessage(WM_SWITCHBAR_SYNC);
+			pMainWnd->SendMessage(WM_SWITCHBAR_SYNC, reinterpret_cast<WPARAM>(GetSafeHwnd()));
 		}
 	}
 }

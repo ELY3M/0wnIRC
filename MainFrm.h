@@ -6,12 +6,13 @@
 
 constexpr UINT WM_SWITCHBAR_SYNC = WM_APP + 1;
 constexpr UINT WM_SWITCHBAR_ACTIVATE_CHILD = WM_APP + 2;
+constexpr UINT WM_SWITCHBAR_REMOVE_CHILD = WM_APP + 3;
 
 class CSwitchBar : public CPane
 {
 public:
 	BOOL Create(CWnd* pParentWnd, UINT nID);
-	void SyncFromWindows(HWND hMDIClient, HWND hActiveChild);
+	void SyncFromWindows(HWND hActiveChild, HWND hHintChild, HWND hRemovedChild = nullptr);
 
 protected:
 	CTabCtrl m_wndTabs;
@@ -69,6 +70,7 @@ protected:
 	afx_msg LRESULT OnToolbarCreateNew(WPARAM wp, LPARAM lp);
 	afx_msg LRESULT OnSwitchBarSync(WPARAM wp, LPARAM lp);
 	afx_msg LRESULT OnSwitchBarActivateChild(WPARAM wp, LPARAM lp);
+	afx_msg LRESULT OnSwitchBarRemoveChild(WPARAM wp, LPARAM lp);
 	DECLARE_MESSAGE_MAP()
 
 };
