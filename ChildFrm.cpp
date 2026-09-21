@@ -19,8 +19,15 @@ IMPLEMENT_DYNCREATE(CChildFrame, CMDIChildWndEx)
 BEGIN_MESSAGE_MAP(CChildFrame, CMDIChildWndEx)
 	ON_COMMAND(ID_FILE_CLOSE, &CChildFrame::OnFileClose)
 	ON_WM_SETFOCUS()
-	ON_WM_CREATE()
 END_MESSAGE_MAP()
+
+namespace
+{
+	const int kMainPaneWidth = 700;
+	const int kMainPaneMinWidth = 200;
+	const int kSidePaneWidth = 220;
+	const int kSidePaneMinWidth = 100;
+}
 
 // CChildFrame construction/destruction
 
@@ -70,53 +77,70 @@ void CChildFrame::OnFileClose()
 	SendMessage(WM_CLOSE);
 }
 
-int CChildFrame::OnCreate(LPCREATESTRUCT lpCreateStruct) 
+BOOL CChildFrame::OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext)
 {
-	if (CMDIChildWndEx::OnCreate(lpCreateStruct) == -1)
-		return -1;
-	
 	// create splitter with a main pane and a secondary pane
 	if (!m_wndSplitter.CreateStatic(this, 1, 2))
 	{
 		TRACE0("Failed to create splitter window\n");
-		return -1;
+		return FALSE;
 	}
 
-	if (!m_wndSplitter.CreateView(0, 0, RUNTIME_CLASS(CChildView), CSize(700, 0), nullptr))
+	if (!m_wndSplitter.CreateView(0, 0, RUNTIME_CLASS(CChildView), CSize(kMainPaneWidth, 0), pContext))
 	{
 		TRACE0("Failed to create main view pane\n");
-		return -1;
+		return FALSE;
 	}
 
-	if (!m_wndSplitter.CreateView(0, 1, RUNTIME_CLASS(CChildView), CSize(220, 0), nullptr))
+	CCreateContext nickListContext = {};
+	CCreateContext* pNickListContext = nullptr;
+	if (pContext != nullptr)
 	{
-		TRACE0("Failed to create secondary view pane\n");
-		return -1;
+		nickListContext = *pContext;
+		nickListContext.m_pCurrentFrame = this;
+		nickListContext.m_pNewViewClass = RUNTIME_CLASS(CNickListView);
+		nickListContext.m_pLastView = DYNAMIC_DOWNCAST(CView, m_wndSplitter.GetPane(0, 0));
+		pNickListContext = &nickListContext;
 	}
 
-	m_wndSplitter.SetColumnInfo(0, 700, 200);
-	m_wndSplitter.SetColumnInfo(1, 220, 100);
+	if (!m_wndSplitter.CreateView(0, 1, RUNTIME_CLASS(CNickListView), CSize(kSidePaneWidth, 0), pNickListContext))
+	{
+		TRACE0("Failed to create secondary nick-list pane\n");
+		return FALSE;
+	}
+
+	m_wndSplitter.SetColumnInfo(0, kMainPaneWidth, kMainPaneMinWidth);
+	m_wndSplitter.SetColumnInfo(1, kSidePaneWidth, kSidePaneMinWidth);
 	m_wndSplitter.RecalcLayout();
 
-	return 0;
+	UNREFERENCED_PARAMETER(lpcs);
+	return TRUE;
 }
 
 void CChildFrame::OnSetFocus(CWnd* pOldWnd) 
 {
 	CMDIChildWndEx::OnSetFocus(pOldWnd);
 
-	if (CWnd* pMainPane = GetMainPane())
+	if (CWnd* pPane = GetActivePane())
 	{
-		pMainPane->SetFocus();
+		pPane->SetFocus();
 	}
 }
 
 BOOL CChildFrame::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo) 
 {
+	CWnd* pPane = GetActivePane();
+
 	// let the view have first crack at the command
+	if (pPane != nullptr)
+	{
+		if (pPane->OnCmdMsg(nID, nCode, pExtra, pHandlerInfo))
+			return TRUE;
+	}
+
 	if (CWnd* pMainPane = GetMainPane())
 	{
-		if (pMainPane->OnCmdMsg(nID, nCode, pExtra, pHandlerInfo))
+		if (pMainPane != pPane && pMainPane->OnCmdMsg(nID, nCode, pExtra, pHandlerInfo))
 			return TRUE;
 	}
 	
@@ -136,4 +160,30 @@ CWnd* CChildFrame::GetMainPane() const
 		return pMainPane;
 
 	return nullptr;
+}
+
+CWnd* CChildFrame::GetActivePane() const
+{
+	CWnd* pFocusedWnd = CWnd::GetFocus();
+	if (pFocusedWnd != nullptr && m_wndSplitter.GetSafeHwnd() != nullptr)
+	{
+		for (int nCol = 0; nCol < 2; ++nCol)
+		{
+			CWnd* pPane = m_wndSplitter.GetPane(0, nCol);
+			if (pPane != nullptr && (pPane == pFocusedWnd || pPane->IsChild(pFocusedWnd)))
+			{
+				return pPane;
+			}
+		}
+	}
+
+	if (m_wndSplitter.GetSafeHwnd() != nullptr)
+	{
+		if (CWnd* pActivePane = m_wndSplitter.GetActivePane())
+		{
+			return pActivePane;
+		}
+	}
+
+	return GetMainPane();
 }

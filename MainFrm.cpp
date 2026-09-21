@@ -30,6 +30,7 @@ END_MESSAGE_MAP()
 
 static UINT indicators[] =
 {
+	ID_SEPARATOR,           // status line indicator
 	ID_STATUSBAR_PANE1,     // active MDI window indicator
 	ID_INDICATOR_CAPS,
 	ID_INDICATOR_NUM,
@@ -94,7 +95,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	const int nDocPane = m_wndStatusBar.CommandToIndex(ID_STATUSBAR_PANE1);
 	if (nDocPane >= 0)
 	{
-		m_wndStatusBar.SetPaneInfo(nDocPane, ID_STATUSBAR_PANE1, SBPS_STRETCH, 250);
+		m_wndStatusBar.SetPaneInfo(nDocPane, ID_STATUSBAR_PANE1, 0, 250);
 		m_wndStatusBar.SetPaneText(nDocPane, _T("No active window"));
 	}
 
