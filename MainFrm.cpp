@@ -29,7 +29,7 @@ END_MESSAGE_MAP()
 
 BOOL CSwitchBar::Create(CWnd* pParentWnd, UINT nID)
 {
-	return CPane::Create(_T("Switchbar"),
+	return CPane::Create(nullptr,
 		WS_CHILD | WS_VISIBLE,
 		CRect(0, 0, 0, 0),
 		pParentWnd,
