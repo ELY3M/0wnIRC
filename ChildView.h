@@ -10,6 +10,7 @@
 
 class CChildView : public CWnd
 {
+	DECLARE_DYNCREATE(CChildView)
 // Construction
 public:
 	CChildView();
@@ -33,4 +34,3 @@ protected:
 	afx_msg void OnPaint();
 	DECLARE_MESSAGE_MAP()
 };
-
