@@ -492,25 +492,6 @@ LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM, LPARAM lp)
 		return 0;
 	}
 
-	LRESULT CMainFrame::OnSwitchBarRemoveChild(WPARAM wp, LPARAM)
-	{
-		if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
-		{
-			HWND hActiveChild = nullptr;
-			if (::IsWindow(m_hWndMDIClient))
-			{
-				if (CMDIChildWnd* pActiveChild = MDIGetActive())
-				{
-					hActiveChild = pActiveChild->GetSafeHwnd();
-				}
-			}
-
-			m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr, reinterpret_cast<HWND>(wp));
-		}
-
-		return 0;
-	}
-
 	if (::IsWindow(m_hWndMDIClient))
 	{
 		if (::IsIconic(hChild))
@@ -519,6 +500,25 @@ LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM, LPARAM lp)
 		}
 
 		::SendMessage(m_hWndMDIClient, WM_MDIACTIVATE, reinterpret_cast<WPARAM>(hChild), 0);
+	}
+
+	return 0;
+}
+
+LRESULT CMainFrame::OnSwitchBarRemoveChild(WPARAM wp, LPARAM)
+{
+	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+	{
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr, reinterpret_cast<HWND>(wp));
 	}
 
 	return 0;
