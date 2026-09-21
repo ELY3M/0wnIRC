@@ -13,7 +13,7 @@
 
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
-
+#include <afxcview.h>       // MFC view classes, including CListView
 
 
 
@@ -29,7 +29,6 @@
 
 
 #include <afxsock.h>            // MFC socket extensions
-
 
 
 
