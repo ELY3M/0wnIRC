@@ -6,10 +6,11 @@
 #pragma once
 
 
-// CChildView window
+// CChildView view
 
-class CChildView : public CWnd
+class CChildView : public CView
 {
+	DECLARE_DYNCREATE(CChildView)
 // Construction
 public:
 	CChildView();
@@ -30,7 +31,19 @@ public:
 
 	// Generated message map functions
 protected:
-	afx_msg void OnPaint();
+	virtual void OnDraw(CDC* pDC);
 	DECLARE_MESSAGE_MAP()
 };
 
+class CNickListView : public CListView
+{
+	DECLARE_DYNCREATE(CNickListView)
+
+public:
+	CNickListView();
+	virtual ~CNickListView();
+
+protected:
+	virtual void OnInitialUpdate();
+	DECLARE_MESSAGE_MAP()
+};

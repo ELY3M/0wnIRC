@@ -14,6 +14,8 @@
 
 // CChildView
 
+IMPLEMENT_DYNCREATE(CChildView, CView)
+
 CChildView::CChildView()
 {
 }
@@ -23,8 +25,7 @@ CChildView::~CChildView()
 }
 
 
-BEGIN_MESSAGE_MAP(CChildView, CWnd)
-	ON_WM_PAINT()
+BEGIN_MESSAGE_MAP(CChildView, CView)
 END_MESSAGE_MAP()
 
 
@@ -33,7 +34,7 @@ END_MESSAGE_MAP()
 
 BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs) 
 {
-	if (!CWnd::PreCreateWindow(cs))
+	if (!CView::PreCreateWindow(cs))
 		return FALSE;
 
 	cs.dwExStyle |= WS_EX_CLIENTEDGE;
@@ -44,12 +45,28 @@ BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs)
 	return TRUE;
 }
 
-void CChildView::OnPaint() 
+void CChildView::OnDraw(CDC* pDC)
 {
-	CPaintDC dc(this); // device context for painting
-	
-	// TODO: Add your message handler code here
-	
-	// Do not call CWnd::OnPaint() for painting messages
+	UNREFERENCED_PARAMETER(pDC);
 }
 
+IMPLEMENT_DYNCREATE(CNickListView, CListView)
+
+CNickListView::CNickListView()
+{
+}
+
+CNickListView::~CNickListView()
+{
+}
+
+BEGIN_MESSAGE_MAP(CNickListView, CListView)
+END_MESSAGE_MAP()
+
+void CNickListView::OnInitialUpdate()
+{
+	CListView::OnInitialUpdate();
+
+	CListCtrl& listCtrl = GetListCtrl();
+	listCtrl.ModifyStyle(LVS_TYPEMASK, LVS_LIST);
+}

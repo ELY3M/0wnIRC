@@ -24,12 +24,14 @@ BEGIN_MESSAGE_MAP(CMainFrame, CMDIFrameWndEx)
 	ON_WM_CREATE()
 	ON_COMMAND(ID_WINDOW_MANAGER, &CMainFrame::OnWindowManager)
 	ON_COMMAND(ID_VIEW_CUSTOMIZE, &CMainFrame::OnViewCustomize)
+	ON_UPDATE_COMMAND_UI(ID_STATUSBAR_PANE1, &CMainFrame::OnUpdateStatusPane1)
 	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
 {
 	ID_SEPARATOR,           // status line indicator
+	ID_STATUSBAR_PANE1,     // active MDI window indicator
 	ID_INDICATOR_CAPS,
 	ID_INDICATOR_NUM,
 	ID_INDICATOR_SCRL,
@@ -90,6 +92,12 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;      // fail to create
 	}
 	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
+	const int nDocPane = m_wndStatusBar.CommandToIndex(ID_STATUSBAR_PANE1);
+	if (nDocPane >= 0)
+	{
+		m_wndStatusBar.SetPaneInfo(nDocPane, ID_STATUSBAR_PANE1, 0, 250);
+		m_wndStatusBar.SetPaneText(nDocPane, _T("No active window"));
+	}
 
 	// TODO: Delete these five lines if you don't want the toolbar and menubar to be dockable
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
@@ -184,6 +192,22 @@ void CMainFrame::OnViewCustomize()
 	pDlgCust->Create();
 }
 
+void CMainFrame::OnUpdateStatusPane1(CCmdUI* pCmdUI)
+{
+	CString strActiveWindow;
+	if (CMDIChildWndEx* pActiveChild = DYNAMIC_DOWNCAST(CMDIChildWndEx, MDIGetActive()))
+	{
+		pActiveChild->GetWindowText(strActiveWindow);
+	}
+
+	if (strActiveWindow.IsEmpty())
+	{
+		strActiveWindow = _T("No active window");
+	}
+
+	pCmdUI->SetText(strActiveWindow);
+}
+
 LRESULT CMainFrame::OnToolbarCreateNew(WPARAM wp,LPARAM lp)
 {
 	LRESULT lres = CMDIFrameWndEx::OnToolbarCreateNew(wp,lp);
@@ -232,4 +256,3 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 
 	return TRUE;
 }
-
