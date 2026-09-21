@@ -117,22 +117,32 @@ void CChildFrame::OnMDIActivate(BOOL bActivate, CWnd* pActivateWnd, CWnd* pDeact
 
 void CChildFrame::OnDestroy()
 {
-	NotifySwitchBar();
 	CMDIChildWndEx::OnDestroy();
+	NotifySwitchBar(FALSE);
 }
 
 BOOL CChildFrame::OnSetText(LPCTSTR lpszText)
 {
 	const BOOL bResult = CMDIChildWndEx::OnSetText(lpszText);
-	NotifySwitchBar();
+	if (bResult)
+	{
+		NotifySwitchBar();
+	}
 	return bResult;
 }
 
-void CChildFrame::NotifySwitchBar() const
+void CChildFrame::NotifySwitchBar(BOOL bAsync) const
 {
 	CWnd* pMainWnd = AfxGetMainWnd();
 	if (pMainWnd != nullptr && ::IsWindow(pMainWnd->GetSafeHwnd()))
 	{
-		pMainWnd->PostMessage(WM_SWITCHBAR_SYNC);
+		if (bAsync)
+		{
+			pMainWnd->PostMessage(WM_SWITCHBAR_SYNC);
+		}
+		else
+		{
+			pMainWnd->SendMessage(WM_SWITCHBAR_SYNC);
+		}
 	}
 }

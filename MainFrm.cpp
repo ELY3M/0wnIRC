@@ -97,7 +97,7 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 		}
 	}
 
-	for (int i = 0; i < m_windowOrder.GetSize(); ++i)
+	for (INT_PTR i = 0; i < m_windowOrder.GetSize(); ++i)
 	{
 		const HWND hChild = m_windowOrder[i];
 		if (!::IsWindow(hChild))
@@ -120,18 +120,19 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 		item.pszText = const_cast<LPTSTR>(static_cast<LPCTSTR>(strTitle));
 		item.lParam = reinterpret_cast<LPARAM>(hChild);
 
-		if (i < m_wndTabs.GetItemCount())
+		const int nTabIndex = static_cast<int>(i);
+		if (nTabIndex < m_wndTabs.GetItemCount())
 		{
-			m_wndTabs.SetItem(i, &item);
+			m_wndTabs.SetItem(nTabIndex, &item);
 		}
 		else
 		{
-			m_wndTabs.InsertItem(i, &item);
+			m_wndTabs.InsertItem(nTabIndex, &item);
 		}
 
 		if (hChild == hActiveChild)
 		{
-			nActiveIndex = i;
+			nActiveIndex = nTabIndex;
 		}
 	}
 

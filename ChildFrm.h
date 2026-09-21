@@ -44,5 +44,5 @@ protected:
 	afx_msg BOOL OnSetText(LPCTSTR lpszText);
 	DECLARE_MESSAGE_MAP()
 
-	void NotifySwitchBar() const;
+	void NotifySwitchBar(BOOL bAsync = TRUE) const;
 };
