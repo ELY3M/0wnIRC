@@ -20,9 +20,9 @@ namespace
 	constexpr UINT IDC_SWITCHBAR_TABS = 1;
 	constexpr int kSwitchBarHeight = 28;
 
-	int FindWindowIndex(const CArray<HWND, HWND>& windows, HWND hWindow)
+	INT_PTR FindWindowIndex(const CArray<HWND, HWND>& windows, HWND hWindow)
 	{
-		for (int i = 0; i < windows.GetSize(); ++i)
+		for (INT_PTR i = 0; i < windows.GetSize(); ++i)
 		{
 			if (windows[i] == hWindow)
 			{
@@ -42,8 +42,12 @@ END_MESSAGE_MAP()
 
 BOOL CSwitchBar::Create(CWnd* pParentWnd, UINT nID)
 {
-	return CPane::Create(_T("Switchbar"), pParentWnd, CRect(0, 0, 0, 0), FALSE, nID,
-		WS_CHILD | WS_VISIBLE | CBRS_BOTTOM | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_FIXED);
+	return CPane::Create(_T("Switchbar"),
+		WS_CHILD | WS_VISIBLE,
+		CRect(0, 0, 0, 0),
+		pParentWnd,
+		nID,
+		CBRS_BOTTOM | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_FIXED);
 }
 
 void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
@@ -85,7 +89,7 @@ void CSwitchBar::SyncFromWindows(HWND hMDIClient, HWND hActiveChild)
 		}
 	}
 
-	for (int i = m_windowOrder.GetUpperBound(); i >= 0; --i)
+	for (INT_PTR i = m_windowOrder.GetUpperBound(); i >= 0; --i)
 	{
 		if (FindWindowIndex(currentWindows, m_windowOrder[i]) < 0)
 		{
