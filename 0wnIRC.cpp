@@ -422,7 +422,7 @@ void CNameDlg::OnBnClickedSavename()
 	
 
 
-	CDialogEx:IDOK;
+	EndDialog(IDOK);
 
 
 

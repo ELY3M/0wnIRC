@@ -14,6 +14,208 @@
 
 // CMainFrame
 
+namespace
+{
+	constexpr UINT ID_SWITCHBAR_PANE = AFX_IDW_CONTROLBAR_FIRST + 60;
+	constexpr UINT IDC_SWITCHBAR_TABS = 1;
+	constexpr int kSwitchBarHeight = 28;
+}
+
+BEGIN_MESSAGE_MAP(CSwitchBar, CPane)
+	ON_WM_CREATE()
+	ON_WM_SIZE()
+	ON_NOTIFY(TCN_SELCHANGE, IDC_SWITCHBAR_TABS, &CSwitchBar::OnSelChange)
+END_MESSAGE_MAP()
+
+BOOL CSwitchBar::Create(CWnd* pParentWnd, UINT nID)
+{
+	return CPane::Create(_T("Switchbar"),
+		WS_CHILD | WS_VISIBLE,
+		CRect(0, 0, 0, 0),
+		pParentWnd,
+		nID,
+		CBRS_BOTTOM | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_FIXED);
+}
+
+void CSwitchBar::SyncFromWindows(HWND hActiveChild, HWND hHintChild, HWND hRemovedChild)
+{
+	if (!::IsWindow(m_wndTabs.GetSafeHwnd()))
+	{
+		return;
+	}
+
+	m_bSyncing = TRUE;
+
+	for (INT_PTR i = m_windowOrder.GetUpperBound(); i >= 0; --i)
+	{
+		if (m_windowOrder[i] == hRemovedChild)
+		{
+			m_windowOrder.RemoveAt(i);
+		}
+	}
+
+	if (::IsWindow(hHintChild))
+	{
+		BOOL bKnownWindow = FALSE;
+		for (INT_PTR i = 0; i < m_windowOrder.GetSize(); ++i)
+		{
+			if (m_windowOrder[i] == hHintChild)
+			{
+				bKnownWindow = TRUE;
+				break;
+			}
+		}
+
+		if (!bKnownWindow)
+		{
+			m_windowOrder.Add(hHintChild);
+		}
+	}
+
+	int nActiveIndex = -1;
+
+	for (INT_PTR i = m_windowOrder.GetUpperBound(); i >= 0; --i)
+	{
+		if (!::IsWindow(m_windowOrder[i]))
+		{
+			m_windowOrder.RemoveAt(i);
+		}
+	}
+
+	for (INT_PTR i = 0; i < m_windowOrder.GetSize(); ++i)
+	{
+		const HWND hChild = m_windowOrder[i];
+		if (!::IsWindow(hChild))
+		{
+			continue;
+		}
+
+		CString strTitle;
+		const int nTitleLength = ::GetWindowTextLength(hChild);
+		LPTSTR pszTitle = strTitle.GetBuffer(nTitleLength + 1);
+		::GetWindowText(hChild, pszTitle, nTitleLength + 1);
+		strTitle.ReleaseBuffer();
+		if (strTitle.IsEmpty())
+		{
+			strTitle = _T("(untitled)");
+		}
+
+		TCITEM item = {};
+		item.mask = TCIF_TEXT | TCIF_PARAM;
+		item.pszText = const_cast<LPTSTR>(static_cast<LPCTSTR>(strTitle));
+		item.lParam = reinterpret_cast<LPARAM>(hChild);
+
+		const int nTabIndex = static_cast<int>(i);
+		if (nTabIndex < m_wndTabs.GetItemCount())
+		{
+			m_wndTabs.SetItem(nTabIndex, &item);
+		}
+		else
+		{
+			m_wndTabs.InsertItem(nTabIndex, &item);
+		}
+
+		if (hChild == hActiveChild)
+		{
+			nActiveIndex = nTabIndex;
+		}
+	}
+
+	while (m_wndTabs.GetItemCount() > m_windowOrder.GetSize())
+	{
+		m_wndTabs.DeleteItem(m_wndTabs.GetItemCount() - 1);
+	}
+
+	if (nActiveIndex >= 0)
+	{
+		m_wndTabs.SetCurSel(nActiveIndex);
+	}
+	else if (m_wndTabs.GetItemCount() > 0)
+	{
+		const int nCurrentSelection = m_wndTabs.GetCurSel();
+		if (nCurrentSelection < 0 || nCurrentSelection >= m_wndTabs.GetItemCount())
+		{
+			m_wndTabs.SetCurSel(0);
+		}
+	}
+
+	m_bSyncing = FALSE;
+}
+
+CSize CSwitchBar::CalcFixedLayout(BOOL, BOOL)
+{
+	return CSize(32767, kSwitchBarHeight);
+}
+
+void CSwitchBar::LayoutTabs()
+{
+	if (::IsWindow(m_wndTabs.GetSafeHwnd()))
+	{
+		CRect rect;
+		GetClientRect(&rect);
+		rect.DeflateRect(2, 2);
+		m_wndTabs.MoveWindow(rect);
+	}
+}
+
+int CSwitchBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CPane::OnCreate(lpCreateStruct) == -1)
+	{
+		return -1;
+	}
+
+	if (!m_wndTabs.Create(WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_BUTTONS | TCS_SINGLELINE,
+		CRect(0, 0, 0, 0), this, IDC_SWITCHBAR_TABS))
+	{
+		TRACE0("Failed to create switchbar tabs\n");
+		return -1;
+	}
+
+	if (CFont* pFont = GetFont())
+	{
+		m_wndTabs.SetFont(pFont);
+	}
+	else
+	{
+		m_wndTabs.SetFont(CFont::FromHandle(static_cast<HFONT>(::GetStockObject(DEFAULT_GUI_FONT))));
+	}
+	LayoutTabs();
+
+	return 0;
+}
+
+void CSwitchBar::OnSize(UINT nType, int cx, int cy)
+{
+	CPane::OnSize(nType, cx, cy);
+	LayoutTabs();
+}
+
+void CSwitchBar::OnSelChange(NMHDR*, LRESULT* pResult)
+{
+	if (m_bSyncing)
+	{
+		*pResult = 0;
+		return;
+	}
+
+	const int nSelectedIndex = m_wndTabs.GetCurSel();
+	if (nSelectedIndex >= 0)
+	{
+		TCITEM item = {};
+		item.mask = TCIF_PARAM;
+		if (m_wndTabs.GetItem(nSelectedIndex, &item))
+		{
+			if (CWnd* pMainWnd = AfxGetMainWnd())
+			{
+				pMainWnd->PostMessage(WM_SWITCHBAR_ACTIVATE_CHILD, 0, item.lParam);
+			}
+		}
+	}
+
+	*pResult = 0;
+}
+
 IMPLEMENT_DYNAMIC(CMainFrame, CMDIFrameWndEx)
 
 const int  iMaxUserToolbars = 10;
@@ -25,6 +227,9 @@ BEGIN_MESSAGE_MAP(CMainFrame, CMDIFrameWndEx)
 	ON_COMMAND(ID_WINDOW_MANAGER, &CMainFrame::OnWindowManager)
 	ON_COMMAND(ID_VIEW_CUSTOMIZE, &CMainFrame::OnViewCustomize)
 	ON_REGISTERED_MESSAGE(AFX_WM_CREATETOOLBAR, &CMainFrame::OnToolbarCreateNew)
+	ON_MESSAGE(WM_SWITCHBAR_SYNC, &CMainFrame::OnSwitchBarSync)
+	ON_MESSAGE(WM_SWITCHBAR_ACTIVATE_CHILD, &CMainFrame::OnSwitchBarActivateChild)
+	ON_MESSAGE(WM_SWITCHBAR_REMOVE_CHILD, &CMainFrame::OnSwitchBarRemoveChild)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -95,8 +300,17 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndMenuBar.EnableDocking(CBRS_ALIGN_ANY);
 	m_wndToolBar.EnableDocking(CBRS_ALIGN_ANY);
 	EnableDocking(CBRS_ALIGN_ANY);
+
+	if (!m_wndSwitchBar.Create(this, ID_SWITCHBAR_PANE))
+	{
+		TRACE0("Failed to create switchbar\n");
+		return -1;
+	}
+	m_wndSwitchBar.EnableDocking(CBRS_ALIGN_BOTTOM);
+
 	DockPane(&m_wndMenuBar);
 	DockPane(&m_wndToolBar);
+	DockPane(&m_wndSwitchBar, AFX_IDW_DOCKBAR_BOTTOM);
 
 
 	// enable Visual Studio 2005 style docking window behavior
@@ -138,6 +352,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	lstBasicCommands.AddTail(ID_VIEW_TOOLBAR);
 
 	CMFCToolBar::SetBasicCommands(lstBasicCommands);
+
+	SyncSwitchBar();
 
 	return 0;
 }
@@ -233,3 +449,77 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
+void CMainFrame::SyncSwitchBar()
+{
+	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+	{
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr);
+	}
+}
+
+LRESULT CMainFrame::OnSwitchBarSync(WPARAM wp, LPARAM)
+{
+	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+	{
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, reinterpret_cast<HWND>(wp));
+	}
+	return 0;
+}
+
+LRESULT CMainFrame::OnSwitchBarActivateChild(WPARAM, LPARAM lp)
+{
+	const HWND hChild = reinterpret_cast<HWND>(lp);
+	if (!::IsWindow(hChild))
+	{
+		return 0;
+	}
+
+	if (::IsWindow(m_hWndMDIClient))
+	{
+		if (::IsIconic(hChild))
+		{
+			::SendMessage(m_hWndMDIClient, WM_MDIRESTORE, reinterpret_cast<WPARAM>(hChild), 0);
+		}
+
+		::SendMessage(m_hWndMDIClient, WM_MDIACTIVATE, reinterpret_cast<WPARAM>(hChild), 0);
+	}
+
+	return 0;
+}
+
+LRESULT CMainFrame::OnSwitchBarRemoveChild(WPARAM wp, LPARAM)
+{
+	if (::IsWindow(m_wndSwitchBar.GetSafeHwnd()))
+	{
+		HWND hActiveChild = nullptr;
+		if (::IsWindow(m_hWndMDIClient))
+		{
+			if (CMDIChildWnd* pActiveChild = MDIGetActive())
+			{
+				hActiveChild = pActiveChild->GetSafeHwnd();
+			}
+		}
+
+		m_wndSwitchBar.SyncFromWindows(hActiveChild, nullptr, reinterpret_cast<HWND>(wp));
+	}
+
+	return 0;
+}

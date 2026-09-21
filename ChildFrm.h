@@ -39,5 +39,10 @@ protected:
 	afx_msg void OnFileClose();
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg void OnMDIActivate(BOOL bActivate, CWnd* pActivateWnd, CWnd* pDeactivateWnd);
+	afx_msg void OnDestroy();
+	afx_msg BOOL OnSetText(LPCTSTR lpszText);
 	DECLARE_MESSAGE_MAP()
+
+	void NotifySwitchBar(BOOL bAsync = TRUE) const;
 };
